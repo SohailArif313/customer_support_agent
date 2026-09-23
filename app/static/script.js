@@ -5,6 +5,7 @@
 // Change this to your Render URL once deployed, e.g.:
 // const API_URL = "https://your-app.onrender.com/chat";
 const API_URL = "/chat";
+const WIDGET_SECRET = "yahan-koi-bhi-random-lamba-string-daal-do-123xyz";
 
 const messagesEl = document.getElementById("chat-messages");
 const inputEl = document.getElementById("chat-input");
@@ -28,7 +29,10 @@ async function sendMessage() {
   try {
     const res = await fetch(API_URL, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "X-Widget-Key": WIDGET_SECRET,
+      },
       body: JSON.stringify({ message: text }),
     });
 

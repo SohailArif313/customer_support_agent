@@ -1,76 +1,31 @@
-from pathlib import Path
-
-from fastapi import FastAPI, HTTPException
+# main.py
+from fastapi import FastAPI, HTTPException, Header
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, Field
+from fastapi.responses import FileResponse
+from pydantic import BaseModel
+import os
 
 from app.agents.graph import build_graph
 
-
-# --------------------------------------------------
-# Paths
-# --------------------------------------------------
-
-BASE_DIR = Path(__file__).resolve().parent
-STATIC_DIR = BASE_DIR / "app" / "static"
-TEMPLATE_DIR = BASE_DIR / "app" / "templates"
-
-
-# --------------------------------------------------
-# FastAPI App
-# --------------------------------------------------
-
-app = FastAPI(
-    title="Customer Support Agent",
-    description="AI customer support agent built with FastAPI and LangGraph.",
-    version="1.0.0",
-)
-
-
-# --------------------------------------------------
-# CORS
-# --------------------------------------------------
+app = FastAPI(title="Customer Support Agent")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Restrict this when deploying
-    allow_credentials=True,
+    allow_origins=["*"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-
-# --------------------------------------------------
-# LangGraph
-# --------------------------------------------------
-
 graph = build_graph()
+app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
+# Your own secret — only you (and your widget) know this
+WIDGET_SECRET = os.getenv("WIDGET_SECRET")
 
-# --------------------------------------------------
-# Static Files
-# --------------------------------------------------
-
-app.mount(
-    "/static",
-    StaticFiles(directory=STATIC_DIR),
-    name="static",
-)
-
-
-# --------------------------------------------------
-# Request / Response Models
-# --------------------------------------------------
 
 class ChatRequest(BaseModel):
-    message: str = Field(
-        ...,
-        min_length=1,
-        max_length=2000,
-        description="Customer's message",
-    )
+    message: str
 
 
 class ChatResponse(BaseModel):
@@ -79,47 +34,30 @@ class ChatResponse(BaseModel):
     order_id: str | None = None
 
 
-# --------------------------------------------------
-# Routes
-# --------------------------------------------------
-
-@app.get("/", include_in_schema=False)
+@app.get("/")
 def serve_widget():
-    """Serve the customer support chat interface."""
-    return FileResponse(TEMPLATE_DIR / "index.html")
+    return FileResponse("app/templates/index.html")
 
 
 @app.get("/health")
 def health_check():
-    """Health check endpoint."""
-    return {
-        "status": "ok",
-        "service": "customer-support-agent",
-    }
+    return {"status": "ok"}
 
 
 @app.post("/chat", response_model=ChatResponse)
-def chat(request: ChatRequest):
-    """Process a customer message through the LangGraph agent."""
+def chat(request: ChatRequest, x_widget_key: str = Header(default=None)):
+    # Reject the request if the secret key doesn't match
+    if x_widget_key != WIDGET_SECRET:
+        raise HTTPException(status_code=401, detail="Unauthorized")
 
-    try:
-        result = graph.invoke(
-            {
-                "user_message": request.message,
-                "intent": None,
-                "order_id": None,
-                "response": None,
-            }
-        )
-
-        return ChatResponse(
-            response=result["response"],
-            intent=result["intent"],
-            order_id=result.get("order_id"),
-        )
-
-    except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail="Something went wrong while processing the request.",
-        ) from e
+    result = graph.invoke({
+        "user_message": request.message,
+        "intent": None,
+        "order_id": None,
+        "response": None,
+    })
+    return ChatResponse(
+        response=result["response"],
+        intent=result["intent"],
+        order_id=result.get("order_id"),
+    )
