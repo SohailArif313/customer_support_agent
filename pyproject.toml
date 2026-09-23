@@ -1,0 +1,25 @@
+[project]
+name = "customer-support-agent"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "Sohail Arif", email = "sohailsolutions333@gmail.com" }
+]
+requires-python = ">=3.13"
+dependencies = [
+    "fastapi>=0.141.1",
+    "langchain>=1.4.2",
+    "langchain-openai>=1.6.4",
+    "langgraph>=1.2.12",
+    "pydantic>=2.13.5",
+    "python-dotenv>=1.2.3",
+    "uvicorn[standard]>=0.53.0",
+]
+
+[project.scripts]
+customer-support-agent = "customer_support_agent:main"
+
+[build-system]
+requires = ["uv_build>=0.12.7,<0.13.0"]
+build-backend = "uv_build"
